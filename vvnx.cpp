@@ -64,71 +64,11 @@ pushd out/target/product/mido/system/etc/selinux/; adb push plat_sepolicy.cil pl
 #define KLOG_LEVEL 6
 
 
-#include <hidl/Status.h>
-
-#include <android/hardware/gnss/1.0/IGnss.h>
-
-using android::hardware::Return;
-using android::hardware::Void;
-
-using android::hardware::gnss::V1_0::IGnss;
-using android::hardware::gnss::V1_0::IGnssCallback;
-using android::hardware::gnss::V1_0::GnssLocation;
-using android::sp;
-
-
-//Si la totalité des mthdes ne sont pas implémentées erreur peu informative:
-//error: allocating an object of abstract class type 'GnssCallback'
-class GnssCallback : public IGnssCallback {
-	public:	
-	
-	virtual ~GnssCallback() = default;
-	
-    Return<void> gnssLocationCb(const GnssLocation& location) override {
-      fprintf(stdout, "Location received... %f %f %f %f\n", location.latitudeDegrees, location.longitudeDegrees, 
-      location.horizontalAccuracyMeters, location.verticalAccuracyMeters); //gnss/1.0/types.hal
-      log_gps(location.latitudeDegrees, location.longitudeDegrees);
-      return Void();
-    }
-
-    Return<void> gnssStatusCb(
-        const IGnssCallback::GnssStatusValue /* status */) override {
-      return Void();
-    }
-    
-    Return<void> gnssSvStatusCb(
-        const IGnssCallback::GnssSvStatus& /* svStatus */) override {
-      return Void();
-    }
-    
-    Return<void> gnssNmeaCb(
-        int64_t /* timestamp */,
-        const android::hardware::hidl_string& /* nmea */) override {
-      return Void();
-    }
-    
-    Return<void> gnssSetCapabilitesCb(uint32_t capabilities) override {
-      fprintf(stdout,"Capabilities received %d\n", capabilities);
-      return Void();
-    }
-    
-    Return<void> gnssAcquireWakelockCb() override { return Void(); }
-    Return<void> gnssReleaseWakelockCb() override { return Void(); }
-    Return<void> gnssRequestTimeCb() override { return Void(); }
-    
-    Return<void> gnssSetSystemInfoCb(
-        const IGnssCallback::GnssSystemInfo& info) override {
-      fprintf(stdout,"Info received, year %d\n", info.yearOfHw);
-      return Void();
-    }
-
-
-};
 
 
 
 
-static int intervalle = 60; //secondes
+static int intervalle = 180; //secondes
 
 //des outils pour le fonctionnement d'epoll. ToDo: Il faudrait décrire le mécanisme pour que ce soit moins obscurs
 //ce qu'est la struct epoll_event
@@ -142,37 +82,18 @@ static int wakealarm_fd;
 int main()
 {
 	int nevents = 0;
-	bool result;
 
 	struct epoll_event ev;
 	struct epoll_event events[eventct];
 	struct itimerspec itval;
 	
-	sleep(20);
-
-    sp<IGnss> gnss_hal = IGnss::getService();
-	if (gnss_hal == nullptr) KLOG_WARNING(LOG_TAG, "null_ptr hal...\n");
-	
-	sp<IGnssCallback> gnss_cb = new GnssCallback();
-    if (gnss_cb == nullptr) KLOG_WARNING(LOG_TAG, "null_ptr cb...\n");
-    
-    result = gnss_hal->setCallback(gnss_cb);
-	if (!result) fprintf(stderr, "erreur setcb...\n");
-	
-	result = gnss_hal->setPositionMode(
-      IGnss::GnssPositionMode::MS_BASED,
-      IGnss::GnssPositionRecurrence::RECURRENCE_PERIODIC, 10000,
-      0, 0);
-
-    result = gnss_hal->start();
-    if (!result) fprintf(stderr, "erreur start...\n");
 
 	epollfd = epoll_create(eventct);
 	wakealarm_fd = timerfd_create(CLOCK_BOOTTIME_ALARM, TFD_NONBLOCK);
 	
 	KLOG_WARNING(LOG_TAG, "Creation du fd epoll=%i et du fd timerfd=%i\n", epollfd, wakealarm_fd);
 
-	itval.it_value.tv_sec = 5; //le premier déclenchement
+	itval.it_value.tv_sec = 30; //le premier déclenchement
 	itval.it_value.tv_nsec = 0;
 	itval.it_interval.tv_sec = intervalle; //repeating
 	itval.it_interval.tv_nsec = 0;
@@ -191,9 +112,6 @@ int main()
 	KLOG_WARNING(LOG_TAG, "timerfd_settime() error\n");
 	_exit(1);
 	}
-	
-
-	
 	
 	/**loop epoll_wait()/read() le coeur du fonctionnement**/
 	while (1) {
