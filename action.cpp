@@ -133,8 +133,13 @@ void action() {
       IGnss::GnssPositionRecurrence::RECURRENCE_PERIODIC, 10000,
       0, 0);
 
+	result = gnss_hal->stop();
+	if (!result) KLOG_WARNING(LOG_TAG, "erreur stop...\n");
+
+	sleep(5);
+	
     result = gnss_hal->start();
-    if (!result) fprintf(stderr, "erreur start...\n");
+    if (!result) KLOG_WARNING(LOG_TAG, "erreur start...\n");
 	
 	
 	
