@@ -15,6 +15,8 @@ using namespace android;
 #include <hidl/Status.h>
 #include <android/hardware/gnss/1.0/IGnss.h>
 
+#include <binder/IServiceManager.h>
+
 using android::hardware::Return;
 using android::hardware::Void;
 
@@ -22,6 +24,8 @@ using android::hardware::gnss::V1_0::IGnss;
 using android::hardware::gnss::V1_0::IGnssCallback;
 using android::hardware::gnss::V1_0::GnssLocation;
 using android::sp;
+
+using android::String16;
 
 
 //Si la totalité des mthdes ne sont pas implémentées erreur peu informative:
@@ -78,6 +82,9 @@ void action() {
 	sqlite3 *db;
 	int rc;		
 	std::string stmt, charge, temp;
+	FILE * fp;
+	int fd;
+	Vector<String16> args;
 	
 	
 	clock_gettime(CLOCK_REALTIME, &ts);	    
@@ -111,6 +118,42 @@ void action() {
 	rc = sqlite3_open("/data/data/essai.db", &db); 
 	rc = sqlite3_exec(db, stmt.c_str(), NULL, 0, NULL);
 	sqlite3_close(db);
+	
+	/**
+	 * device idle via binder
+	 *
+	 * 
+
+	fp = fopen("/data/data/idle.txt", "a");
+	fd = fileno(fp);
+	fprintf(fp, "**************************************************************************************************************\n");
+	fprintf(fp, "********@ %ld\n", (long)ts.tv_sec);	
+	service->dump(fd, args);**/
+	fp = fopen("/data/data/idle.txt", "a");
+	fd = fileno(fp);
+	fprintf(fp, "**************************************************************************************************************\n");
+	fprintf(fp, "********@ %ld\n", (long)ts.tv_sec);
+	
+	 
+	android::sp<android::IBinder> binder =
+        android::defaultServiceManager()->checkService(android::String16("deviceidle"));
+    if (binder == NULL) {
+      KLOG_WARNING(LOG_TAG, "gpsvvnx dans action: check service new style a plante\n");
+	} else {
+		binder->dump(fd, args);
+	}
+	fclose(fp); 
+	/**sp<IServiceManager> sm = defaultServiceManager();
+	if (sm == nullptr) {
+		KLOG_WARNING(LOG_TAG, "gpsvvnx dans action: default manager pas recupere\n");
+	}
+	
+	
+	sp<IBinder> service = sm->checkService(String16("devicedidle"));
+	
+	if (service == nullptr) {
+		KLOG_WARNING(LOG_TAG, "gpsvvnx dans action: le check du service a foiré\n");
+	}**/	
 	
 	
 	/**
