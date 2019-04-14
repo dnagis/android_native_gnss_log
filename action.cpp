@@ -81,13 +81,14 @@ void action() {
 	timespec ts;
 	sqlite3 *db;
 	int rc;		
-	std::string stmt, charge, temp;
+	std::string stmt, charge, temp, time_string;;
 	FILE * fp;
 	int fd;
 	Vector<String16> args;
 	
 	
-	clock_gettime(CLOCK_REALTIME, &ts);	    
+	clock_gettime(CLOCK_REALTIME, &ts);
+	time_string = ctime(&ts.tv_sec); //https://linux.die.net/man/3/ctime	    
 	
 	std::ifstream ifile_c("/sys/class/power_supply/battery/charge_counter");
     ifile_c >> charge; 
@@ -120,40 +121,36 @@ void action() {
 	sqlite3_close(db);
 	
 	/**
-	 * device idle via binder
+	 * dumpsys vers des fichiers de log 
 	 *
-	 * 
+	 **/ 
 
+	//deviceidle
 	fp = fopen("/data/data/idle.txt", "a");
 	fd = fileno(fp);
-	fprintf(fp, "**************************************************************************************************************\n");
-	fprintf(fp, "********@ %ld\n", (long)ts.tv_sec);	
-	service->dump(fd, args);**/
-	fp = fopen("/data/data/idle.txt", "a");
-	fd = fileno(fp);
-	fprintf(fp, "**************************************************************************************************************\n");
-	fprintf(fp, "********@ %ld\n", (long)ts.tv_sec);
-	
+	dprintf(fd, "**************************************************************************************************************\n");
+	dprintf(fd, "********@ %s\n", time_string.c_str());	
 	 
-	android::sp<android::IBinder> binder =
-        android::defaultServiceManager()->checkService(android::String16("deviceidle"));
-    if (binder == NULL) {
-      KLOG_WARNING(LOG_TAG, "gpsvvnx dans action: check service new style a plante\n");
-	} else {
-		binder->dump(fd, args);
-	}
+	android::sp<android::IBinder> binder_idle = android::defaultServiceManager()->checkService(android::String16("deviceidle"));
+    if (binder_idle == NULL) {
+		 KLOG_WARNING(LOG_TAG, "gpsvvnx dans action: check service idle a plante\n");
+	} else { binder_idle->dump(fd, args);}
 	fclose(fp); 
-	/**sp<IServiceManager> sm = defaultServiceManager();
-	if (sm == nullptr) {
-		KLOG_WARNING(LOG_TAG, "gpsvvnx dans action: default manager pas recupere\n");
-	}
+	
+	//power
+	fp = fopen("/data/data/power.txt", "a");
+	fd = fileno(fp);
+	dprintf(fd, "**************************************************************************************************************\n");
+	dprintf(fd, "********@ %s\n", time_string.c_str());	
+	 
+	android::sp<android::IBinder> binder_pwr = android::defaultServiceManager()->checkService(android::String16("power"));
+    if (binder_pwr == NULL) {
+		 KLOG_WARNING(LOG_TAG, "gpsvvnx dans action: check service power a plante\n");
+	} else { binder_pwr->dump(fd, args);}
+	fclose(fp); 
 	
 	
-	sp<IBinder> service = sm->checkService(String16("devicedidle"));
 	
-	if (service == nullptr) {
-		KLOG_WARNING(LOG_TAG, "gpsvvnx dans action: le check du service a foiré\n");
-	}**/	
 	
 	
 	/**
