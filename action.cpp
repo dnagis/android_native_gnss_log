@@ -36,8 +36,7 @@ class GnssCallback : public IGnssCallback {
 	virtual ~GnssCallback() = default;
 	
     Return<void> gnssLocationCb(const GnssLocation& location) override {
-      fprintf(stdout, "Location received... %f %f %f %f\n", location.latitudeDegrees, location.longitudeDegrees, 
-      location.horizontalAccuracyMeters, location.verticalAccuracyMeters); //gnss/1.0/types.hal
+      //fprintf(stdout, "Location received... %f %f %f %f\n", location.latitudeDegrees, location.longitudeDegrees, location.horizontalAccuracyMeters, location.verticalAccuracyMeters); //gnss/1.0/types.hal
       log_gps(location.latitudeDegrees, location.longitudeDegrees);
       return Void();
     }
@@ -193,15 +192,20 @@ void log_gps(float lat, float lng) {
 	
 	clock_gettime(CLOCK_REALTIME, &ts);	
 	
-	KLOG_WARNING(LOG_TAG, "lat: %f, lng: %f \n", lat, lng);
+	KLOG_WARNING(LOG_TAG, "lat: %0.14f, lng: %0.14f \n", lat, lng);
+	
+	char lat_precision[20], lng_precision[20];
+	sprintf(lat_precision, "%0.14f", lat);
+	sprintf(lng_precision, "%0.14f", lng);
+	
 
 	std::string stmt;
 	stmt = "insert into loc values(NULL,";
 	stmt += std::to_string(ts.tv_sec);
 	stmt +=  ",";
-	stmt += std::to_string(lat);
+	stmt += lat_precision;
 	stmt +=  ",";
-	stmt += std::to_string(lng);
+	stmt += lng_precision;
 	stmt +=  ");";	
 	KLOG_WARNING(LOG_TAG, "le stmt loc qui va arriver chez sqlite: %s \n", stmt.c_str());
 
