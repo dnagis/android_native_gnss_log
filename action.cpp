@@ -4,6 +4,8 @@
 #include <sqlite3.h> //libsqlite @ LOCAL_SHARED_LIBRARIES 
 #include <fstream>
 
+#include "stdio_filebuf.h" //voir native playground interface binder dumpsys
+
 #define LOG_TAG "gpsvvnx"
 #define KLOG_LEVEL 6
 
@@ -80,10 +82,11 @@ void action() {
 	timespec ts;
 	sqlite3 *db;
 	int rc;		
-	std::string stmt, charge, temp, time_string;;
-	FILE * fp;
-	int fd;
+	std::string stmt, charge, temp, time_string, line, idle_status;
+	//FILE * pFile;
+	//int fd;
 	Vector<String16> args;
+	int pipefd[2];
 	
 	
 	clock_gettime(CLOCK_REALTIME, &ts);
@@ -97,56 +100,79 @@ void action() {
     ifile_t >> temp; 
     ifile_t.close();
     
-	KLOG_WARNING(LOG_TAG, "********Timer Triggered******* @ %ld charge %s temp %s\n", (long)ts.tv_sec, charge.c_str(), temp.c_str());
+
+	/**
+	 * dumpsys --> voir native playground interface binder dumpsys pour explications
+	 *
+	 **/ 
+
+	//deviceidle
+
+	if (pipe(pipefd) == -1) {
+        KLOG_WARNING(LOG_TAG, "error pipe \n");
+    }
+	 
+	android::sp<android::IBinder> binder_idle = android::defaultServiceManager()->checkService(android::String16("deviceidle"));
+    if (binder_idle == NULL) {
+		 KLOG_WARNING(LOG_TAG, "gpsvvnx dans action: check service idle a plante\n");
+	} else { binder_idle->dump(pipefd[1], args);}
+	
+	FILE* pFile = fdopen(pipefd[0], "r");
+    if (pFile == NULL) printf("Error opening pipe");
+	stdio_filebuf<char> filebuf(pFile);
+    std::istream is(&filebuf);
+    
+    while(std::getline(is, line)) 
+    {
+		//printf("%lu -- %s\n", line.length(), line.c_str());
+		if (line.find("mState") != std::string::npos) 
+		{
+		std::size_t start = 2;
+		size_t ws = line.find(" ", start);
+		//printf("ws @ %lu", ws);
+		idle_status = line.substr(9, ws-9);
+		break;
+		}
+	}
+	
+	close(pipefd[0]);
+	close(pipefd[1]);
+
+	
+	/**power, écriture dans un fichier
+	fp = fopen("/data/data/power.txt", "a");
+	fd = fileno(fp);
+	dprintf(fd, "********@ %s\n", time_string.c_str());		 
+	android::sp<android::IBinder> binder_pwr = android::defaultServiceManager()->checkService(android::String16("power"));
+    if (binder_pwr == NULL) {
+		 KLOG_WARNING(LOG_TAG, "gpsvvnx dans action: check service power a plante\n");
+	} else { binder_pwr->dump(fd, args);}
+	fclose(fp); **/
+	
+	
+	KLOG_WARNING(LOG_TAG, "********Timer Triggered******* @ %ld charge = %s temp = %s idle status = %s\n", (long)ts.tv_sec, charge.c_str(), temp.c_str(), idle_status.c_str());
 	
 	//build string stmt à passer à sqlite
-	stmt = "insert into temp values(NULL,";
+	stmt = "insert into power values(NULL,";
 	stmt += std::to_string(ts.tv_sec);
 	stmt +=  ",";
 	stmt += charge.c_str();
 	stmt +=  ",";
 	stmt += temp.c_str();
-	stmt +=  ");";	
+	stmt +=  ",'";
+	stmt += idle_status.c_str(); //attention c du text faut entourer par ' '
+	stmt +=  "');";	
 	KLOG_WARNING(LOG_TAG, "le stmt batterie qui va arriver chez sqlite: %s \n", stmt.c_str());
 	
 	/**
-	/data/data/essai.db
-	CREATE TABLE temp (ID INTEGER PRIMARY KEY AUTOINCREMENT, EPOCH INTEGER NOT NULL, BATT INTEGER NOT NULL, TEMP INTEGER NOT NULL);
-	sqlite3 /data/data/essai.db "select datetime(EPOCH, 'unixepoch','localtime'), (BATT*100/4041000), TEMP from temp;"
+	/data/data/powerlog.db
+	CREATE TABLE power (ID INTEGER PRIMARY KEY AUTOINCREMENT, EPOCH INTEGER NOT NULL, BATT INTEGER NOT NULL, TEMP INTEGER NOT NULL, IDLE TEXT NOT NULL);
+	sqlite3 /data/data/powerlog.db "select datetime(EPOCH, 'unixepoch','localtime'), (BATT*100/4041000), TEMP, IDLE from power;"
 	**/	
 	
-	rc = sqlite3_open("/data/data/essai.db", &db); 
+	rc = sqlite3_open("/data/data/powerlog.db", &db); 
 	rc = sqlite3_exec(db, stmt.c_str(), NULL, 0, NULL);
 	sqlite3_close(db);
-	
-	/**
-	 * dumpsys vers des fichiers de log 
-	 *
-	 **/ 
-
-	//deviceidle
-	fp = fopen("/data/data/idle.txt", "a");
-	fd = fileno(fp);
-	dprintf(fd, "**************************************************************************************************************\n");
-	dprintf(fd, "********@ %s\n", time_string.c_str());	
-	 
-	android::sp<android::IBinder> binder_idle = android::defaultServiceManager()->checkService(android::String16("deviceidle"));
-    if (binder_idle == NULL) {
-		 KLOG_WARNING(LOG_TAG, "gpsvvnx dans action: check service idle a plante\n");
-	} else { binder_idle->dump(fd, args);}
-	fclose(fp); 
-	
-	//power
-	fp = fopen("/data/data/power.txt", "a");
-	fd = fileno(fp);
-	dprintf(fd, "**************************************************************************************************************\n");
-	dprintf(fd, "********@ %s\n", time_string.c_str());	
-	 
-	android::sp<android::IBinder> binder_pwr = android::defaultServiceManager()->checkService(android::String16("power"));
-    if (binder_pwr == NULL) {
-		 KLOG_WARNING(LOG_TAG, "gpsvvnx dans action: check service power a plante\n");
-	} else { binder_pwr->dump(fd, args);}
-	fclose(fp); 
 	
 	
 	
