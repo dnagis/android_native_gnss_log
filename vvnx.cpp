@@ -68,7 +68,7 @@ pushd out/target/product/mido/system/etc/selinux/; adb push plat_sepolicy.cil pl
 
 
 
-static int intervalle = 180; //secondes
+static int intervalle = 600; //secondes
 
 //des outils pour le fonctionnement d'epoll. ToDo: Il faudrait décrire le mécanisme pour que ce soit moins obscurs
 //ce qu'est la struct epoll_event

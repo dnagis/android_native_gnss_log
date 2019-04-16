@@ -4,20 +4,17 @@
 #include <sqlite3.h> //libsqlite @ LOCAL_SHARED_LIBRARIES 
 #include <fstream>
 
-#include "stdio_filebuf.h" //voir native playground interface binder dumpsys
-
 #define LOG_TAG "gpsvvnx"
 #define KLOG_LEVEL 6
 
-
-using namespace android;
 
 
 
 #include <hidl/Status.h>
 #include <android/hardware/gnss/1.0/IGnss.h>
-
 #include <binder/IServiceManager.h>
+
+#include "stdio_filebuf.h" //voir native playground interface binder dumpsys
 
 using android::hardware::Return;
 using android::hardware::Void;
@@ -28,7 +25,7 @@ using android::hardware::gnss::V1_0::GnssLocation;
 using android::sp;
 
 using android::String16;
-
+using namespace android;
 
 //Si la totalité des mthdes ne sont pas implémentées erreur peu informative:
 //error: allocating an object of abstract class type 'GnssCallback'
@@ -83,8 +80,6 @@ void action() {
 	sqlite3 *db;
 	int rc;		
 	std::string stmt, charge, temp, time_string, line, idle_status;
-	//FILE * pFile;
-	//int fd;
 	Vector<String16> args;
 	int pipefd[2];
 	
@@ -102,11 +97,11 @@ void action() {
     
 
 	/**
-	 * dumpsys --> voir native playground interface binder dumpsys pour explications
-	 *
-	 **/ 
+	 * dumpsys 	//deviceidle--> voir native playground interface binder dumpsys pour explications
+	 ***/
+	  
 
-	//deviceidle
+
 
 	if (pipe(pipefd) == -1) {
         KLOG_WARNING(LOG_TAG, "error pipe \n");
@@ -134,9 +129,9 @@ void action() {
 		break;
 		}
 	}
-	
-	close(pipefd[0]);
-	close(pipefd[1]);
+	//idle_status = "dummy";
+	//close(pipefd[0]);
+	//close(pipefd[1]); 
 
 	
 	/**power, écriture dans un fichier
@@ -175,17 +170,18 @@ void action() {
 	sqlite3_close(db);
 	
 	
-	
+	if(idle_status == "IDLE") return;
 	
 	
 	/**
 	HAL GNSS
 	**/	
-	
+	KLOG_WARNING(LOG_TAG, "on arrive à la partie hal \n");
 	bool result;
 	
 	sp<IGnss> gnss_hal = IGnss::getService();
 	if (gnss_hal == nullptr) KLOG_WARNING(LOG_TAG, "null_ptr hal...\n");
+	KLOG_WARNING(LOG_TAG, "on a le service \n");
 	
 	sp<IGnssCallback> gnss_cb = new GnssCallback();
     if (gnss_cb == nullptr) KLOG_WARNING(LOG_TAG, "null_ptr cb...\n");
