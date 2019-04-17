@@ -170,7 +170,7 @@ void action() {
 	sqlite3_close(db);
 	
 	
-	if(idle_status == "IDLE") return;
+	
 	
 	
 	/**
@@ -196,6 +196,8 @@ void action() {
 
 	result = gnss_hal->stop();
 	if (!result) KLOG_WARNING(LOG_TAG, "erreur stop...\n");
+	
+	if(idle_status == "IDLE") return;
 
 	sleep(5);
 	
