@@ -212,7 +212,8 @@ void log_gps(float lat, float lng) {
 	
 	timespec ts;
 	sqlite3 *db;
-	int rc;	
+	int rc;
+	FILE * pFile;	
 	
 	clock_gettime(CLOCK_REALTIME, &ts);	
 	
@@ -238,6 +239,11 @@ void log_gps(float lat, float lng) {
 	rc = sqlite3_open("/data/data/loc.db", &db); 
 	rc = sqlite3_exec(db, stmt.c_str(), NULL, 0, NULL);
 	sqlite3_close(db);	
+	
+	
+	pFile = fopen("/sdcard/gps.txt", "w+");
+	fprintf(pFile, "%s %0.14f %0.14f", std::to_string(ts.tv_sec).c_str(), lat, lng);		 
+	fclose(pFile);
 	
 	
 	
