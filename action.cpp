@@ -102,7 +102,7 @@ void action() {
 	  
 
 
-
+	/**récupération d'une variable dans un dumpsys**/
 	if (pipe(pipefd) == -1) {
         KLOG_WARNING(LOG_TAG, "error pipe \n");
     }
@@ -132,6 +132,19 @@ void action() {
 	//idle_status = "dummy";
 	//close(pipefd[0]);
 	//close(pipefd[1]); 
+	
+	
+	
+	
+	/**idle, écriture dans un fichier
+	FILE* fp = fopen("/data/data/idle.txt", "a");
+	fd = fileno(fp);
+	dprintf(fd, "********@ %s\n", time_string.c_str());		 
+	android::sp<android::IBinder> binder_pwr = android::defaultServiceManager()->checkService(android::String16("deviceidle"));
+    if (binder_pwr == NULL) {
+		 KLOG_WARNING(LOG_TAG, "gpsvvnx dans action: check service power a plante\n");
+	} else { binder_pwr->dump(fd, args);}
+	fclose(fp); **/
 
 	
 	/**power, écriture dans un fichier
@@ -176,8 +189,11 @@ void action() {
 	/**
 	HAL GNSS
 	**/	
-	KLOG_WARNING(LOG_TAG, "on arrive à la partie hal \n");
+	KLOG_WARNING(LOG_TAG, "on arrive à la partie hal  \n");
 	bool result;
+	
+	
+	if (idle_status != "ZOOOOOBBBBB") return; //pour ne pas aller plus loin pour tests batterie
 	
 	sp<IGnss> gnss_hal = IGnss::getService();
 	if (gnss_hal == nullptr) KLOG_WARNING(LOG_TAG, "null_ptr hal...\n");
